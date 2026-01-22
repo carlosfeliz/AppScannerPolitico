@@ -1,0 +1,51 @@
+name: capturas
+description: Aplicación de captura de votantes con escaneo OCR
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Core dependencies
+  camera: ^0.11.3
+  google_ml_kit: ^0.20.0
+  http: ^1.6.0
+  fluttertoast: ^9.0.0
+  path_provider: ^2.1.5
+  vibration: ^3.1.4
+  
+  # Authentication & Storage
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.2
+  
+  # UI
+  cupertino_icons: ^1.0.2
+  intl: ^0.20.2
+  flutter_localizations:
+    sdk: flutter
+  image_picker: ^1.2.1
+  cached_network_image: ^3.4.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.1
+
+# Configuración del icono launcher
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/IMG_8950.PNG"
+  adaptive_icon_background: "#00264C"
+  adaptive_icon_foreground: "assets/images/IMG_8950.PNG"
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
