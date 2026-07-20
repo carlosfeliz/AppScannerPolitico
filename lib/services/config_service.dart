@@ -34,6 +34,9 @@ class ConfigService {
     // Migracion: limpiar cualquier rastro de las URLs viejas hardcodeadas
     // (Gilber / Sanz Lovaton) para forzar el flujo multi-tenant nuevo.
     final currentUrl = _prefs?.getString(_keyBaseUrl);
+    // OJO: no incluir 'siselect' aqui — todas las URLs de produccion son
+    // {slug}.siselecto.com y borrarian la sesion en cada arranque. Solo se
+    // limpian las URLs viejas hardcodeadas (Gilber / Sanz Lovaton).
     if (currentUrl != null &&
         (currentUrl.contains('sanzlovaton') ||
             currentUrl.contains('gilbergomez') ||
@@ -85,7 +88,12 @@ class ConfigService {
     if (p == null) return;
 
     await p.setString(_keyTenantSlug, slug);
-    await p.setString(_keyBaseUrl, (data['api_base_url'] ?? '').toString());
+    // La baseUrl se arma desde el slug (no se confia en el host que devuelve el
+    // servidor detras del proxy, que puede salir mal). Fallback al api_base_url.
+    final baseUrl = slug.isNotEmpty
+        ? 'https://$slug.$mainDomain/api'
+        : (data['api_base_url'] ?? '').toString();
+    await p.setString(_keyBaseUrl, baseUrl);
     await p.setString(
         _keyPadronUrl, (data['padron_url'] ?? defaultPadronUrl).toString());
     await p.setString(_keyTenantName, (data['tenant_name'] ?? '').toString());
@@ -95,7 +103,8 @@ class ConfigService {
     if (colors is Map) {
       await p.setString(
           _keyPrimaryColor, (colors['login_color'] ?? '').toString());
-      await p.setString(_keyButtonColor,
+      await p.setString(
+          _keyButtonColor,
           (colors['button_primary_color'] ?? colors['accent_color'] ?? '')
               .toString());
     }

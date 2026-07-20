@@ -7,15 +7,18 @@ class ApiService {
   static String get baseUrl => ConfigService.getBaseUrl();
   static String get padronUrl => ConfigService.getPadronUrl();
 
-  /// Consulta la config publica de arranque de un tenant por su codigo (slug).
-  /// Arma el subdominio `https://{slug}.siselecto.com` y pega a /mobile/config.
-  static Future<Map<String, dynamic>> fetchMobileConfig(String slug) async {
+  /// Consulta la config publica de arranque de un tenant por su codigo (slug)
+  /// + su clave de acceso. Arma el subdominio `https://{slug}.siselecto.com`
+  /// y pega a /mobile/config, pasando la clave como query param.
+  static Future<Map<String, dynamic>> fetchMobileConfig(
+      String slug, String key) async {
     final clean = slug.trim().toLowerCase();
     if (clean.isEmpty) {
       return {'success': false, 'message': 'Ingrese el codigo de su organizacion'};
     }
     final url = Uri.parse(
-        'https://$clean.${ConfigService.mainDomain}/api/mobile/config/$clean');
+            'https://$clean.${ConfigService.mainDomain}/api/mobile/config/$clean')
+        .replace(queryParameters: {'key': key.trim()});
     try {
       final response = await http.get(url, headers: {'Accept': 'application/json'});
       final isJson =

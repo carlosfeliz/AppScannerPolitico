@@ -13,8 +13,10 @@ class OrgScreen extends StatefulWidget {
   State<OrgScreen> createState() => _OrgScreenState();
 }
 
-class _OrgScreenState extends State<OrgScreen> with SingleTickerProviderStateMixin {
+class _OrgScreenState extends State<OrgScreen>
+    with SingleTickerProviderStateMixin {
   final _codeController = TextEditingController();
+  final _keyController = TextEditingController();
   bool _isLoading = false;
 
   late final AnimationController _anim;
@@ -37,19 +39,25 @@ class _OrgScreenState extends State<OrgScreen> with SingleTickerProviderStateMix
   @override
   void dispose() {
     _codeController.dispose();
+    _keyController.dispose();
     _anim.dispose();
     super.dispose();
   }
 
   Future<void> _connect() async {
     final code = _codeController.text.trim().toLowerCase();
+    final key = _keyController.text.trim();
     if (code.isEmpty) {
       _snack('Ingrese el codigo de su organizacion');
       return;
     }
+    if (key.isEmpty) {
+      _snack('Ingrese la clave de acceso');
+      return;
+    }
 
     setState(() => _isLoading = true);
-    final result = await ApiService.fetchMobileConfig(code);
+    final result = await ApiService.fetchMobileConfig(code, key);
     if (!mounted) return;
 
     if (result['success'] != true) {
@@ -166,8 +174,27 @@ class _OrgScreenState extends State<OrgScreen> with SingleTickerProviderStateMix
                               onSubmitted: (_) => _connect(),
                               decoration: InputDecoration(
                                 labelText: 'Codigo de organizacion',
-                                hintText: 'ej. gilbergomez',
+                                hintText: 'ej. siselect',
                                 prefixIcon: const Icon(Icons.tag_rounded),
+                                filled: true,
+                                fillColor: const Color(0xFFF1F5F9),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: _keyController,
+                              autocorrect: false,
+                              textCapitalization: TextCapitalization.characters,
+                              textInputAction: TextInputAction.go,
+                              onSubmitted: (_) => _connect(),
+                              decoration: InputDecoration(
+                                labelText: 'Clave de acceso',
+                                hintText: 'ej. MOV-7X4K2',
+                                prefixIcon: const Icon(Icons.key_rounded),
                                 filled: true,
                                 fillColor: const Color(0xFFF1F5F9),
                                 border: OutlineInputBorder(
