@@ -1,93 +1,145 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 
+/// Configuracion multi-tenant en runtime.
+///
+/// La app es UNA sola app generica: no trae ningun tenant "clavado". El usuario
+/// elige su organizacion (slug) en la pantalla de Organizacion, y la app baja la
+/// config real desde `GET /api/mobile/config/{slug}` (base URL, branding, padron).
+/// Asi, al guardar votantes se guardan EXACTAMENTE en el tenant correcto.
 class ConfigService {
   static const String _keyBaseUrl = 'api_base_url';
   static const String _keyPadronUrl = 'padron_base_url';
+  static const String _keyTenantSlug = 'tenant_slug';
+  static const String _keyTenantName = 'tenant_name';
+  static const String _keyLogoUrl = 'logo_url';
   static const String _keyPrimaryColor = 'primary_color';
-  static const String _keySecondaryColor = 'secondary_color';
-  static const String _keyLogoPath = 'logo_path';
+  static const String _keyButtonColor = 'button_color';
 
-  // URLs de Gilber Gomez
-  static const String defaultBaseUrl = 'https://gilbergomez.siselecto.com/api';
-  static const String defaultPadronUrl = 'https://padron-api-production-5296.up.railway.app/api/consulta';
-  
-  // Branding de Gilber Gomez
-  static const String defaultPrimaryColor = '0xFF00264C'; // Azul Gilber
-  static const String defaultSecondaryColor = '0xFF00264C';
-  static const String defaultLogoPath = 'assets/images/IMG_8950.PNG';
+  /// Dominio principal de la plataforma. Con el slug se arma el subdominio del
+  /// tenant: `https://{slug}.siselecto.com`.
+  static const String mainDomain = 'siselecto.com';
+
+  /// Fallback neutro de marca (azul plataforma) cuando aun no hay tenant.
+  static const Color fallbackPrimary = Color(0xFF002855);
+  static const Color fallbackButton = Color(0xFF007BFF);
+  static const String defaultPadronUrl =
+      'https://padron-api-production-5296.up.railway.app/api/consulta';
 
   static SharedPreferences? _prefs;
 
   static Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
-    
-    // Migración total: Si detectamos rastro de Sanz Lovaton o la URL vieja de Gilber,
-    // limpiamos todo para forzar los nuevos colores (#00264C) y logos.
-    String? currentUrl = _prefs?.getString(_keyBaseUrl);
-    if (currentUrl != null && 
-        (currentUrl.contains('sanzlovaton') || currentUrl.contains('gilbergomes.com'))) {
-      await _prefs?.clear();
+
+    // Migracion: limpiar cualquier rastro de las URLs viejas hardcodeadas
+    // (Gilber / Sanz Lovaton) para forzar el flujo multi-tenant nuevo.
+    final currentUrl = _prefs?.getString(_keyBaseUrl);
+    if (currentUrl != null &&
+        (currentUrl.contains('sanzlovaton') ||
+            currentUrl.contains('gilbergomez') ||
+            currentUrl.contains('gilbergomes'))) {
+      await clearTenant();
     }
   }
 
+  // ── Estado del tenant ──────────────────────────────────────────────────────
+
+  static bool hasTenant() => getBaseUrl().isNotEmpty;
+
   static String getBaseUrl() {
-    String url = _prefs?.getString(_keyBaseUrl) ?? defaultBaseUrl;
-    // Asegurar que no termine en /
-    if (url.endsWith('/')) {
-      url = url.substring(0, url.length - 1);
-    }
+    var url = _prefs?.getString(_keyBaseUrl) ?? '';
+    if (url.endsWith('/')) url = url.substring(0, url.length - 1);
     return url;
   }
 
-  static Future<void> setBaseUrl(String url) async {
-    await _prefs?.setString(_keyBaseUrl, url);
-  }
+  static String getPadronUrl() =>
+      _prefs?.getString(_keyPadronUrl) ?? defaultPadronUrl;
 
-  static String getPadronUrl() {
-    return _prefs?.getString(_keyPadronUrl) ?? defaultPadronUrl;
-  }
+  static String getTenantSlug() => _prefs?.getString(_keyTenantSlug) ?? '';
 
-  static Future<void> setPadronUrl(String url) async {
-    await _prefs?.setString(_keyPadronUrl, url);
-  }
+  static String getTenantName() => _prefs?.getString(_keyTenantName) ?? '';
 
-  static Color getPrimaryColor() {
-    final hex = _prefs?.getString(_keyPrimaryColor) ?? defaultPrimaryColor;
-    try {
-      return Color(int.parse(hex));
-    } catch (e) {
-      return Color(int.parse(defaultPrimaryColor));
-    }
-  }
+  static String getLogoUrl() => _prefs?.getString(_keyLogoUrl) ?? '';
 
-  static Future<void> setPrimaryColor(String hex) async {
-    await _prefs?.setString(_keyPrimaryColor, hex);
-  }
+  static Color getPrimaryColor() =>
+      _parseColor(_prefs?.getString(_keyPrimaryColor), fallbackPrimary);
 
+  static Color getButtonColor() =>
+      _parseColor(_prefs?.getString(_keyButtonColor), fallbackButton);
+
+  /// Color secundario derivado: una version mas oscura del primario para los
+  /// degradados de fondo.
   static Color getSecondaryColor() {
-    final hex = _prefs?.getString(_keySecondaryColor) ?? defaultSecondaryColor;
-    try {
-      return Color(int.parse(hex));
-    } catch (e) {
-      return Color(int.parse(defaultSecondaryColor));
+    final p = getPrimaryColor();
+    return Color.lerp(p, Colors.black, 0.35) ?? p;
+  }
+
+  // ── Aplicar la config de /mobile/config ────────────────────────────────────
+
+  /// Guarda la respuesta de `GET /api/mobile/config/{slug}` como tenant activo.
+  static Future<void> applyMobileConfig(
+    String slug,
+    Map<String, dynamic> data,
+  ) async {
+    final p = _prefs;
+    if (p == null) return;
+
+    await p.setString(_keyTenantSlug, slug);
+    await p.setString(_keyBaseUrl, (data['api_base_url'] ?? '').toString());
+    await p.setString(
+        _keyPadronUrl, (data['padron_url'] ?? defaultPadronUrl).toString());
+    await p.setString(_keyTenantName, (data['tenant_name'] ?? '').toString());
+    await p.setString(_keyLogoUrl, (data['logo'] ?? '').toString());
+
+    final colors = data['colors'];
+    if (colors is Map) {
+      await p.setString(
+          _keyPrimaryColor, (colors['login_color'] ?? '').toString());
+      await p.setString(_keyButtonColor,
+          (colors['button_primary_color'] ?? colors['accent_color'] ?? '')
+              .toString());
     }
   }
 
-  static Future<void> setSecondaryColor(String hex) async {
-    await _prefs?.setString(_keySecondaryColor, hex);
+  static Future<void> clearTenant() async {
+    final p = _prefs;
+    if (p == null) return;
+    for (final k in [
+      _keyBaseUrl,
+      _keyPadronUrl,
+      _keyTenantSlug,
+      _keyTenantName,
+      _keyLogoUrl,
+      _keyPrimaryColor,
+      _keyButtonColor,
+    ]) {
+      await p.remove(k);
+    }
   }
 
-  static String getLogoPath() {
-    return _prefs?.getString(_keyLogoPath) ?? defaultLogoPath;
+  // ── Setters usados por la pantalla de admin (override manual) ───────────────
+
+  static Future<void> setBaseUrl(String url) async =>
+      _prefs?.setString(_keyBaseUrl, url);
+  static Future<void> setPadronUrl(String url) async =>
+      _prefs?.setString(_keyPadronUrl, url);
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  /// Acepta '#RRGGBB', 'RRGGBB', '0xFFRRGGBB' o '0xAARRGGBB'.
+  static Color _parseColor(String? raw, Color fallback) {
+    if (raw == null || raw.trim().isEmpty) return fallback;
+    var s = raw.trim();
+    try {
+      if (s.startsWith('#')) s = s.substring(1);
+      if (s.startsWith('0x') || s.startsWith('0X')) s = s.substring(2);
+      if (s.length == 6) s = 'FF$s';
+      return Color(int.parse(s, radix: 16));
+    } catch (_) {
+      return fallback;
+    }
   }
 
-  static Future<void> setLogoPath(String path) async {
-    await _prefs?.setString(_keyLogoPath, path);
-  }
-
-  // Verificar si es el usuario super admin
-  static bool isSuperAdmin(String username) {
-    return username == '00114865355';
-  }
+  // Super admin (override manual de configuracion).
+  static bool isSuperAdmin(String username) => username == '00114865355';
 }

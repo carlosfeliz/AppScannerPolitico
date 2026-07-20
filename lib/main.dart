@@ -13,21 +13,22 @@ class CapturasApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = ConfigService.getPrimaryColor();
     return MaterialApp(
       title: 'Capturas',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: ConfigService.getPrimaryColor(),
-          primary: ConfigService.getPrimaryColor(),
-          secondary: ConfigService.getSecondaryColor(),
+          seedColor: primary,
+          primary: primary,
+          secondary: ConfigService.getButtonColor(),
         ),
+        scaffoldBackgroundColor: const Color(0xFFF1F5F9),
         useMaterial3: true,
         appBarTheme: AppBarTheme(
           centerTitle: true,
           elevation: 0,
-          backgroundColor: ConfigService.getPrimaryColor(),
+          backgroundColor: primary,
           foregroundColor: Colors.white,
         ),
       ),

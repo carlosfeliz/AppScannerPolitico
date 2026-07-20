@@ -7,6 +7,38 @@ class ApiService {
   static String get baseUrl => ConfigService.getBaseUrl();
   static String get padronUrl => ConfigService.getPadronUrl();
 
+  /// Consulta la config publica de arranque de un tenant por su codigo (slug).
+  /// Arma el subdominio `https://{slug}.siselecto.com` y pega a /mobile/config.
+  static Future<Map<String, dynamic>> fetchMobileConfig(String slug) async {
+    final clean = slug.trim().toLowerCase();
+    if (clean.isEmpty) {
+      return {'success': false, 'message': 'Ingrese el codigo de su organizacion'};
+    }
+    final url = Uri.parse(
+        'https://$clean.${ConfigService.mainDomain}/api/mobile/config/$clean');
+    try {
+      final response = await http.get(url, headers: {'Accept': 'application/json'});
+      final isJson =
+          response.headers['content-type']?.contains('application/json') ?? false;
+
+      if (response.statusCode == 200 && isJson) {
+        final body = jsonDecode(response.body);
+        if (body['success'] == true && body['data'] != null) {
+          return {'success': true, 'data': Map<String, dynamic>.from(body['data'])};
+        }
+      }
+      if (response.statusCode == 404) {
+        return {'success': false, 'message': 'Organizacion no encontrada'};
+      }
+      return {
+        'success': false,
+        'message': 'No se pudo conectar con la organizacion (${response.statusCode})'
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Error de red: revise su conexion'};
+    }
+  }
+
   // Headers autenticados
   static Future<Map<String, String>> _getHeaders() async {
     final token = await AuthService.getToken();

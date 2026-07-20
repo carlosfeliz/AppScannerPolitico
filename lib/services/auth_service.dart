@@ -22,6 +22,8 @@ class AuthService {
         body: jsonEncode({
           'username': username,
           'password': password,
+          'client_type': 'mobile-app',
+          'tenant_slug': ConfigService.getTenantSlug(),
         }),
       );
 

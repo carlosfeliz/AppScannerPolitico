@@ -46,6 +46,37 @@ class _MainFormScreenState extends State<MainFormScreen> {
     );
   }
 
+  // Encabezado de seccion con barra de acento del color del tenant
+  Widget _sectionHeader(String title, IconData icon) {
+    final primary = ConfigService.getPrimaryColor();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 20,
+            decoration: BoxDecoration(
+              color: primary,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Icon(icon, size: 20, color: primary),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Consulta al padrón
   Future<void> _consultarPadron(String cedulaSinGuiones) async {
     if (cedulaSinGuiones.length != 11) {
@@ -193,7 +224,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Datos del Ciudadano'),
-        backgroundColor: const Color(0xFF00264C),
+        backgroundColor: ConfigService.getPrimaryColor(),
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
@@ -349,10 +380,21 @@ class _MainFormScreenState extends State<MainFormScreen> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              child: TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.easeOut,
+                builder: (context, t, child) => Opacity(
+                  opacity: t,
+                  child: Transform.translate(
+                    offset: Offset(0, (1 - t) * 24),
+                    child: child,
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     // Mostrar foto de la cédula si está disponible (posición original)
                     if (_fotoBase64 != null && _fotoBase64!.isNotEmpty)
                       Padding(
@@ -470,14 +512,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
                 const SizedBox(height: 20),
 
                 // === Contacto ===
-                const Text(
-                  'Contacto',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
+                _sectionHeader('Contacto', Icons.contact_phone_rounded),
                 const SizedBox(height: 16),
                 _buildTextField('Teléfono *', Icons.phone, _telefonoController,
                   keyboardType: TextInputType.phone,
@@ -488,14 +523,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
                 const SizedBox(height: 20),
 
                 // === Información del Enlace ===
-                const Text(
-                  'Información del Enlace',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
+                _sectionHeader('Información del Enlace', Icons.link_rounded),
                 const SizedBox(height: 16),
                 _buildTextField(
                   'Cédula del Enlace (Opcional)',
@@ -591,10 +619,11 @@ class _MainFormScreenState extends State<MainFormScreen> {
                         ),
                 ),
                 ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
         // Overlay de Carga (Identidad) en el CENTRO
         if (_isConsulting)
           Container(
@@ -785,9 +814,11 @@ class _MainFormScreenState extends State<MainFormScreen> {
         SnackBar(content: Text('❌ Error de conexión: $e')),
       );
     } finally {
-      setState(() {
-        _isConsulting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
