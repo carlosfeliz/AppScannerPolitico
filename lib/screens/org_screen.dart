@@ -152,8 +152,12 @@ class _OrgScreenState extends State<OrgScreen>
                           border: Border.all(
                               color: Colors.white.withOpacity(0.3), width: 2),
                         ),
-                        child: const Icon(Icons.apartment_rounded,
-                            size: 48, color: Colors.white),
+                        child: Image.asset(
+                          'assets/images/SiselectSolo.png',
+                          width: 52,
+                          height: 52,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                       const SizedBox(height: 28),
                       const Text(
@@ -217,10 +221,24 @@ class _OrgScreenState extends State<OrgScreen>
                               autocorrect: false,
                               textCapitalization: TextCapitalization.characters,
                               textInputAction: TextInputAction.go,
+                              inputFormatters: [
+                                // La clave siempre es MOV-XXXXXX en mayusculas.
+                                // textCapitalization solo sugiere al teclado: si
+                                // se escribe en minuscula o se PEGA, el texto
+                                // quedaria tal cual y el servidor la rechaza
+                                // porque la compara exacta.
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'[a-zA-Z0-9\-]')),
+                                TextInputFormatter.withFunction(
+                                  (oldValue, newValue) => newValue.copyWith(
+                                    text: newValue.text.toUpperCase(),
+                                  ),
+                                ),
+                              ],
                               onSubmitted: (_) => _connect(),
                               decoration: InputDecoration(
                                 labelText: 'Clave de acceso',
-                                hintText: 'ej. MOV-7X4K2',
+                                hintText: 'ej. MOV-K7P2QX',
                                 prefixIcon: const Icon(Icons.key_rounded),
                                 filled: true,
                                 fillColor: const Color(0xFFF1F5F9),
