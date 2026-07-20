@@ -1,7 +1,7 @@
 name: capturas
 description: Aplicación de captura de votantes con escaneo OCR
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -17,7 +17,7 @@ dependencies:
   google_mlkit_text_recognition: ^0.13.1
   # Lectura del QR de configuracion: deja la app conectada a su
   # organizacion sin escribir codigo ni clave a mano.
-  google_mlkit_barcode_scanning: ^0.13.1
+  google_mlkit_barcode_scanning: ^0.12.1
   http: ^1.6.0
   fluttertoast: ^9.0.0
   path_provider: ^2.1.5

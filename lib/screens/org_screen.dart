@@ -5,6 +5,7 @@ import '../services/config_service.dart';
 import '../services/update_service.dart';
 import '../widgets/update_dialog.dart';
 import 'login_screen.dart';
+import 'qr_config_scanner_screen.dart';
 
 /// Pantalla de seleccion de organizacion (tenant). El usuario escribe el codigo
 /// que le dio su administrador; la app baja la config real y la deja activa.
@@ -107,6 +108,20 @@ class _OrgScreenState extends State<OrgScreen>
     } catch (_) {
       // Nunca bloquear el ingreso por un fallo del chequeo de version.
     }
+  }
+
+  /// Abre el lector de QR y, si devuelve datos, rellena los campos y conecta.
+  /// El QR lo genera la organizacion desde su panel, asi el capturista no
+  /// tiene que escribir el codigo ni la clave a mano.
+  Future<void> _escanear() async {
+    final datos = await Navigator.of(context).push<Map<String, String>>(
+      MaterialPageRoute(builder: (_) => const QrConfigScannerScreen()),
+    );
+    if (datos == null || !mounted) return;
+
+    _codeController.text = datos['slug'] ?? '';
+    _keyController.text = datos['key'] ?? '';
+    await _connect();
   }
 
   void _snack(String msg) {
@@ -248,7 +263,33 @@ class _OrgScreenState extends State<OrgScreen>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 14),
+                            // Atajo: leer el QR del panel evita escribir el
+                            // codigo y una clave de 10 caracteres en un telefono.
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: OutlinedButton.icon(
+                                onPressed: _isLoading ? null : _escanear,
+                                icon: const Icon(Icons.qr_code_scanner_rounded),
+                                label: const Text(
+                                  'ESCANEAR CODIGO QR',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: primary,
+                                  side: BorderSide(color: primary, width: 1.6),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
                             SizedBox(
                               width: double.infinity,
                               height: 52,
