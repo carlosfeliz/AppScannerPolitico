@@ -12,7 +12,9 @@ dependencies:
   
   # Core dependencies
   camera: ^0.11.3
-  google_ml_kit: ^0.20.0
+  # Solo reconocimiento de texto (OCR de cedula). Antes se usaba el paquete
+  # paraguas google_ml_kit que empaquetaba ~15 modelos de ML sin usar -> APK enorme.
+  google_mlkit_text_recognition: ^0.13.1
   http: ^1.6.0
   fluttertoast: ^9.0.0
   path_provider: ^2.1.5

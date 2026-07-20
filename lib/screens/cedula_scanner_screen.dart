@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:google_ml_kit/google_ml_kit.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:vibration/vibration.dart';
 
@@ -27,7 +27,7 @@ class _CedulaScannerScreenState extends State<CedulaScannerScreen> {
   @override
   void initState() {
     super.initState();
-    _textRecognizer = GoogleMlKit.vision.textRecognizer();
+    _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
     _initCamera();
   }
 
