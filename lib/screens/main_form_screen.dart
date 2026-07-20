@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:capturas/screens/cedula_scanner_screen.dart';
 import 'package:capturas/screens/admin_settings_screen.dart';
 import 'package:capturas/services/config_service.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
+import '../services/offline_queue_service.dart';
 import 'login_screen.dart';
 import 'package:flutter/services.dart';
 
@@ -153,11 +156,55 @@ class _MainFormScreenState extends State<MainFormScreen> {
 
   bool _isSuperAdmin = false;
 
+  // ── Cola offline ──────────────────────────────────────────────────────────
+  int _pendingCount = 0;
+  bool _isSyncing = false;
+  StreamSubscription<List<ConnectivityResult>>? _connSub;
+
   @override
   void initState() {
     super.initState();
     _cedulaEnlaceController.addListener(_onCedulaEnlaceChanged);
     _checkSuperAdmin();
+    _refreshPending();
+    // Intento inicial + auto-sincronizacion al recuperar conexion.
+    _syncPending(silent: true);
+    _connSub = Connectivity().onConnectivityChanged.listen((results) {
+      final online = results.any((r) => r != ConnectivityResult.none);
+      if (online) _syncPending(silent: true);
+    });
+  }
+
+  Future<void> _refreshPending() async {
+    final c = await OfflineQueueService.count();
+    if (mounted) setState(() => _pendingCount = c);
+  }
+
+  Future<void> _syncPending({bool silent = false}) async {
+    if (_isSyncing) return;
+    final pending = await OfflineQueueService.count();
+    if (pending == 0) {
+      if (mounted) setState(() => _pendingCount = 0);
+      return;
+    }
+    if (mounted) setState(() => _isSyncing = true);
+    final result = await OfflineQueueService.syncAll();
+    if (!mounted) return;
+    setState(() {
+      _isSyncing = false;
+      _pendingCount = result['remaining'] ?? 0;
+    });
+    if (!silent || (result['sent'] ?? 0) > 0) {
+      final sent = result['sent'] ?? 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(sent > 0
+              ? '$sent votante(s) sincronizado(s). Pendientes: ${result['remaining']}'
+              : 'Sin conexion. Pendientes: ${result['remaining']}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Future<void> _checkSuperAdmin() async {
@@ -175,6 +222,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
   @override
   void dispose() {
     _cedulaEnlaceController.removeListener(_onCedulaEnlaceChanged);
+    _connSub?.cancel();
     super.dispose();
   }
 
@@ -229,6 +277,55 @@ class _MainFormScreenState extends State<MainFormScreen> {
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
+          // Indicador de votantes pendientes por sincronizar (offline)
+          if (_pendingCount > 0 || _isSyncing)
+            Padding(
+              padding: const EdgeInsets.only(right: 4.0),
+              child: Tooltip(
+                message: 'Pendientes por enviar: $_pendingCount',
+                child: InkWell(
+                  onTap: _isSyncing ? null : () => _syncPending(),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _isSyncing
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor:
+                                      AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              )
+                            : const Icon(Icons.cloud_upload_outlined,
+                                color: Colors.white, size: 22),
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade700,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$_pendingCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (_isSuperAdmin)
             Padding(
               padding: const EdgeInsets.only(right: 8.0),
@@ -782,7 +879,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
         Uri.parse('${ConfigService.getBaseUrl()}/voters'),
         headers: headers,
         body: jsonEncode(voterData),
-      );
+      ).timeout(const Duration(seconds: 20));
       final contentType = response.headers['content-type'] ?? '';
       if (response.statusCode == 201 && contentType.contains('application/json')) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -810,9 +907,19 @@ class _MainFormScreenState extends State<MainFormScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('❌ Error de conexión: $e')),
-      );
+      // Fallo de conexion/timeout: guardar offline para enviar al reconectar.
+      await OfflineQueueService.enqueue(voterData);
+      await _refreshPending();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                '📴 Sin conexion: guardado en el telefono. Se enviara al reconectar.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        _limpiarFormulario();
+      }
     } finally {
       if (mounted) {
         setState(() {
