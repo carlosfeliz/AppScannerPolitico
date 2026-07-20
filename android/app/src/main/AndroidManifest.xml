@@ -4,13 +4,20 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- La app no se distribuye por Google Play: se actualiza descargando el
+         APK nuevo y abriendo el instalador del sistema. Desde Android 8 eso
+         exige este permiso; ademas el usuario debe autorizar una vez
+         "instalar apps desconocidas" para esta app, pantalla que el propio
+         Android le muestra al momento de instalar. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     
     <uses-feature
         android:name="android.hardware.camera"
         android:required="true" />
     
     <application
-        android:label="Gilber Gomez"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         

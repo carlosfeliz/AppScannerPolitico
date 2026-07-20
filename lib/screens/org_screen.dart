@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../services/config_service.dart';
+import '../services/update_service.dart';
+import '../widgets/update_dialog.dart';
 import 'login_screen.dart';
 
 /// Pantalla de seleccion de organizacion (tenant). El usuario escribe el codigo
@@ -60,6 +62,12 @@ class _OrgScreenState extends State<OrgScreen>
     final result = await ApiService.fetchMobileConfig(code, key);
     if (!mounted) return;
 
+    // El bloque app_update viene en TODAS las respuestas, incluidos los errores,
+    // porque una app vieja puede estar fallando justamente por estar vencida.
+    // Por eso se revisa antes de decidir si la respuesta fue exitosa.
+    await _checkForUpdate(result);
+    if (!mounted) return;
+
     if (result['success'] != true) {
       setState(() => _isLoading = false);
       _snack(result['message'] ?? 'No se pudo conectar');
@@ -80,6 +88,25 @@ class _OrgScreenState extends State<OrgScreen>
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
+  }
+
+  /// Busca el bloque `app_update` en la respuesta (esta dentro de `data` cuando
+  /// todo va bien, y en la raiz cuando el servidor devolvio un error) y muestra
+  /// el aviso si hay una version mas nueva publicada.
+  Future<void> _checkForUpdate(Map<String, dynamic> result) async {
+    try {
+      final raw = result['app_update'] ??
+          (result['data'] is Map ? result['data']['app_update'] : null);
+      if (raw is! Map) return;
+
+      final update =
+          await UpdateService.check(Map<String, dynamic>.from(raw));
+      if (update == null || !mounted) return;
+
+      await UpdateDialog.show(context, update);
+    } catch (_) {
+      // Nunca bloquear el ingreso por un fallo del chequeo de version.
+    }
   }
 
   void _snack(String msg) {

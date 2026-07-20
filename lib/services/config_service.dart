@@ -18,7 +18,21 @@ class ConfigService {
 
   /// Dominio principal de la plataforma. Con el slug se arma el subdominio del
   /// tenant: `https://{slug}.siselecto.com`.
-  static const String mainDomain = 'siselecto.com';
+  ///
+  /// Se define al COMPILAR, no en tiempo de ejecucion, para que la app de
+  /// pruebas y la de produccion sean binarios distintos:
+  ///
+  ///   produccion: flutter build apk --release
+  ///   pruebas:    flutter build apk --release --flavor staging \
+  ///                 --dart-define=MAIN_DOMAIN=staging.siselecto.com
+  ///
+  /// A proposito NO es un ajuste que el usuario pueda cambiar dentro de la app:
+  /// si un capturista lo tocara por error, pasaria el dia registrando votantes
+  /// reales contra la base de pruebas sin que nadie lo note.
+  static const String mainDomain = String.fromEnvironment(
+    'MAIN_DOMAIN',
+    defaultValue: 'siselecto.com',
+  );
 
   /// Fallback neutro de marca (azul plataforma) cuando aun no hay tenant.
   static const Color fallbackPrimary = Color(0xFF002855);

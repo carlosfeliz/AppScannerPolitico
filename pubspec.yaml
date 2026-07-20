@@ -30,6 +30,10 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   image_picker: ^1.2.1
+  # Actualizacion de la app fuera de Google Play: leer la version
+  # instalada y abrir el APK descargado con el instalador de Android.
+  package_info_plus: ^8.1.1
+  open_filex: ^4.5.0
   cached_network_image: ^3.4.1
   connectivity_plus: ^6.1.0
 
