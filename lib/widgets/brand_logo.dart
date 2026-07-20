@@ -34,19 +34,27 @@ class BrandLogo extends StatelessWidget {
     );
   }
 
+  // Marca por defecto de la plataforma (Siselect) cuando el tenant aun no tiene
+  // logo propio. Va sobre una tarjeta blanca para ser legible en cualquier fondo.
   Widget _fallback(BuildContext context) {
     return Container(
-      width: size,
-      height: size,
+      padding: EdgeInsets.symmetric(
+          horizontal: size * 0.16, vertical: size * 0.14),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.12),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withOpacity(0.35), width: 2),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Icon(
-        Icons.how_to_vote_rounded,
-        size: size * 0.5,
-        color: fallbackColor ?? Colors.white,
+      child: Image.asset(
+        'assets/images/Siseleto.png',
+        width: size * 1.5,
+        fit: BoxFit.contain,
       ),
     );
   }
