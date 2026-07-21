@@ -30,6 +30,19 @@ class ApiService {
           return {'success': true, 'data': Map<String, dynamic>.from(body['data'])};
         }
       }
+
+      if (isJson) {
+        final body = jsonDecode(response.body);
+        final result = <String, dynamic>{
+          'success': false,
+          'message': body['error'] ?? body['message'] ?? 'No se pudo conectar con la organizacion (${response.statusCode})',
+        };
+        if (body['app_update'] is Map) {
+          result['app_update'] = body['app_update'];
+        }
+        return result;
+      }
+
       if (response.statusCode == 404) {
         return {'success': false, 'message': 'Organizacion no encontrada'};
       }
