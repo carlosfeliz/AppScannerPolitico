@@ -80,6 +80,49 @@ class _MainFormScreenState extends State<MainFormScreen> {
     );
   }
 
+  // Normaliza PascalCase del API externo a snake_case que usa el backend
+  Map<String, dynamic> _normalizarDatosPadron(Map<String, dynamic> raw) {
+    final normalized = Map<String, dynamic>.from(raw);
+
+    const pascalToSnake = {
+      'IdProvincia': 'id_provincia',
+      'IdMunicipio': 'id_municipio',
+      'CodigoCircunscripcion': 'codigo_circunscripcion',
+      'CodigoRecinto': 'codigo_recinto',
+      'CodigoColegio': 'codigo_colegio',
+      'FechaNacimiento': 'fecha_nacimiento',
+      'IdSexo': 'sexo',
+      'IdEstadoCivil': 'id_estado_civil',
+      'IdNacionalidad': 'id_nacionalidad',
+      'IDSectorParaje': 'id_sector_paraje',
+      'IdCategoria': 'id_categoria',
+      'IdCausaCancelacion': 'id_causa_cancelacion',
+      'IdMunicipioOrigen': 'id_municipio_origen',
+      'IdRecintoOrigen': 'id_recinto_origen',
+      'CodigoRecintoOrigen': 'codigo_recinto_origen',
+      'IdColegioOrigen': 'id_colegio_origen',
+      'ColegioOrigen': 'colegio_origen',
+      'PosPagina': 'pos_pagina',
+      'LugarVotacion': 'lugar_votacion',
+      'IdMunicipioExterior': 'id_municipio_exterior',
+      'IDRecintoExterior': 'id_recinto_exterior',
+      'IDColegioExterior': 'id_colegio_exterior',
+      'CodigoRecintoExterior': 'codigo_recinto_exterior',
+      'ColegioExterior': 'colegio_exterior',
+      'PosPaginaExterior': 'pos_pagina_exterior',
+      'NombresPlastico': 'nombres_plastico',
+      'ApellidosPlastico': 'apellidos_plastico',
+    };
+
+    for (final entry in pascalToSnake.entries) {
+      if (raw.containsKey(entry.key) && raw[entry.key] != null) {
+        normalized[entry.value] = raw[entry.key];
+      }
+    }
+
+    return normalized;
+  }
+
   // Consulta al padrón
   Future<void> _consultarPadron(String cedulaSinGuiones) async {
     if (cedulaSinGuiones.length != 11) {
@@ -100,7 +143,8 @@ class _MainFormScreenState extends State<MainFormScreen> {
       if (response.statusCode == 200 || response.statusCode == 404) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
-          final ciudadano = data['data'];
+          final raw = Map<String, dynamic>.from(data['data']);
+          final ciudadano = _normalizarDatosPadron(raw);
           setState(() {
             _nombresController.text = ciudadano['nombres'] ?? '';
             _primerApellidoController.text = ciudadano['apellido1'] ?? '';
@@ -863,7 +907,6 @@ class _MainFormScreenState extends State<MainFormScreen> {
     try {
       // Obtener token de AuthService
       final token = await AuthService.getToken();
-      print('TOKEN PARA GUARDAR VOTANTE: $token');
       if (token == null || token.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('No hay sesión activa. Inicie sesión nuevamente.')),
@@ -938,8 +981,10 @@ class _MainFormScreenState extends State<MainFormScreen> {
     _emailController.clear();
     _cedulaEnlaceController.clear();
     _nombreEnlaceController.clear();
-    _fotoBase64 = null;
-    _datosPadron = null;
-    _datosEnlace = null;
+    setState(() {
+      _fotoBase64 = null;
+      _datosPadron = null;
+      _datosEnlace = null;
+    });
   }
 }
