@@ -1,5 +1,8 @@
+import 'dart:io' show Platform;
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show WriteBuffer;
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 
 /// Lee el codigo QR que la organizacion genera desde su panel y devuelve el
@@ -40,6 +43,12 @@ class _QrConfigScannerScreenState extends State<QrConfigScannerScreen> {
         trasera,
         ResolutionPreset.medium,
         enableAudio: false,
+        // Se pide nv21 explicitamente porque es el unico formato que ML Kit
+        // acepta en Android. Sin esto la camara entrega yuv420_888 y el
+        // escaner no decodifica nada, que es lo que estaba pasando.
+        imageFormatGroup: Platform.isAndroid
+            ? ImageFormatGroup.nv21
+            : ImageFormatGroup.bgra8888,
       );
       await ctrl.initialize();
       if (!mounted) return;
@@ -81,22 +90,38 @@ class _QrConfigScannerScreenState extends State<QrConfigScannerScreen> {
     }
   }
 
+  /// Convierte el fotograma de la camara a algo que ML Kit sepa leer.
+  ///
+  /// Aqui estaba el motivo de que el QR no se leyera nunca. Antes se enviaba
+  /// solo `planes.first.bytes`, es decir UN plano. En Android la camara entrega
+  /// YUV_420_888, que son TRES planos (luminancia y dos de color), asi que ML
+  /// Kit recibia un bufer mucho mas corto de lo que el formato declaraba y no
+  /// llegaba a decodificar nada. Y encima ML Kit en Android no acepta
+  /// yuv420_888 por fromBytes: solo nv21 o yv12.
+  ///
+  /// La solucion es pegar los tres planos y declararlo como nv21, que es lo
+  /// que ML Kit espera de verdad.
   InputImage? _convertir(CameraImage imagen) {
     final camara = _camera;
     if (camara == null) return null;
 
-    final bytes = imagen.planes.first.bytes;
-    final formato = InputImageFormatValue.fromRawValue(imagen.format.raw);
-    if (formato == null) return null;
+    final buffer = WriteBuffer();
+    for (final plano in imagen.planes) {
+      buffer.putUint8List(plano.bytes);
+    }
+    final bytes = buffer.done().buffer.asUint8List();
+
+    final rotacion = InputImageRotationValue.fromRawValue(
+          camara.description.sensorOrientation,
+        ) ??
+        InputImageRotation.rotation0deg;
 
     return InputImage.fromBytes(
       bytes: bytes,
       metadata: InputImageMetadata(
         size: Size(imagen.width.toDouble(), imagen.height.toDouble()),
-        rotation: InputImageRotationValue.fromRawValue(
-                camara.description.sensorOrientation) ??
-            InputImageRotation.rotation0deg,
-        format: formato,
+        rotation: rotacion,
+        format: InputImageFormat.nv21,
         bytesPerRow: imagen.planes.first.bytesPerRow,
       ),
     );

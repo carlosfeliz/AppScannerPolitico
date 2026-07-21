@@ -47,9 +47,50 @@ class _OrgScreenState extends State<OrgScreen>
     super.dispose();
   }
 
+  /// Normaliza la clave de acceso antes de mandarla.
+  ///
+  /// Las claves se reparten escritas como MOV-RVSNZ2, y el capturista la copia
+  /// de un papel o de un WhatsApp. Escribirla sin guion, con un espacio o en
+  /// minusculas es lo normal, y antes cualquiera de esas tres cosas devolvia
+  /// "clave incorrecta" sin explicar por que.
+  ///
+  /// Se quita todo lo que no sea letra o numero y se pasa a mayusculas, asi
+  /// que MOV-RVSNZ2, movrvsnz2 y "mov rvsnz2" acaban siendo la misma clave.
+  static String _normalizarClave(String valor) {
+    return valor.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+  }
+
+  /// Pone el guion solo, en mayusculas, mientras se escribe.
+  ///
+  /// Las claves se reparten como MOV-RVSNZ2, con el prefijo fijo del tipo de
+  /// organizacion. Pedirle al capturista que teclee el guion es pedirle que se
+  /// equivoque: si no lo ponia, la clave era rechazada sin mas explicacion.
+  /// Ahora escribe MOVRVSNZ2 y el campo lo va colocando en su sitio.
+  ///
+  /// Se recoloca el cursor al final a proposito: al insertar un caracter que
+  /// el usuario no tecleo, el cursor se quedaria una posicion atras y el
+  /// siguiente digito acabaria dentro del prefijo.
+  static TextEditingValue _formatearClave(
+    TextEditingValue anterior,
+    TextEditingValue nuevo,
+  ) {
+    final limpio = nuevo.text.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toUpperCase();
+
+    // Sin al menos las tres letras del prefijo no hay donde poner el guion, y
+    // forzarlo mientras escribe la primera letra seria molesto.
+    final texto = limpio.length > 3
+        ? '${limpio.substring(0, 3)}-${limpio.substring(3)}'
+        : limpio;
+
+    return TextEditingValue(
+      text: texto,
+      selection: TextSelection.collapsed(offset: texto.length),
+    );
+  }
+
   Future<void> _connect() async {
     final code = _codeController.text.trim().toLowerCase();
-    final key = _keyController.text.trim();
+    final key = _normalizarClave(_keyController.text);
     if (code.isEmpty) {
       _snack('Ingrese el codigo de su organizacion');
       return;
@@ -240,15 +281,10 @@ class _OrgScreenState extends State<OrgScreen>
                                 // La clave siempre es MOV-XXXXXX en mayusculas.
                                 // textCapitalization solo sugiere al teclado: si
                                 // se escribe en minuscula o se PEGA, el texto
-                                // quedaria tal cual y el servidor la rechaza
-                                // porque la compara exacta.
+                                // quedaria tal cual.
                                 FilteringTextInputFormatter.allow(
                                     RegExp(r'[a-zA-Z0-9\-]')),
-                                TextInputFormatter.withFunction(
-                                  (oldValue, newValue) => newValue.copyWith(
-                                    text: newValue.text.toUpperCase(),
-                                  ),
-                                ),
+                                TextInputFormatter.withFunction(_formatearClave),
                               ],
                               onSubmitted: (_) => _connect(),
                               decoration: InputDecoration(
