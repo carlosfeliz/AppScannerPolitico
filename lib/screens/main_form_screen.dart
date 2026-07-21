@@ -120,6 +120,13 @@ class _MainFormScreenState extends State<MainFormScreen> {
       }
     }
 
+    // Truncar fechas a solo YYYY-MM-DD (el API externo envía "1981-02-18 00:00:00")
+    for (final key in ['fecha_nacimiento', 'FechaNacimiento', 'birth_date']) {
+      if (normalized[key] is String && (normalized[key] as String).length > 10) {
+        normalized[key] = (normalized[key] as String).substring(0, 10);
+      }
+    }
+
     return normalized;
   }
 
