@@ -8,11 +8,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
 import '../services/offline_queue_service.dart';
-import 'login_screen.dart';
+import 'org_screen.dart';
 import 'package:flutter/services.dart';
 
 class MainFormScreen extends StatefulWidget {
-  const MainFormScreen({Key? key}) : super(key: key);
+  const MainFormScreen({super.key});
 
   @override
   State<MainFormScreen> createState() => _MainFormScreenState();
@@ -41,7 +41,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
         inputFormatters: inputFormatters,
         enabled: enabled,
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: ConfigService.getPrimaryColor().withOpacity(0.7)),
+          prefixIcon: Icon(icon, color: ConfigService.getPrimaryColor().withValues(alpha: 0.7)),
           labelText: label,
           border: InputBorder.none,
         ),
@@ -413,7 +413,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -512,10 +512,15 @@ class _MainFormScreenState extends State<MainFormScreen> {
                 );
 
                 if (confirm == true) {
+                  // Salir de un tenant = reiniciar desde 0: se limpia el
+                  // token/usuario, la config del tenant y la cola offline para
+                  // que el proximo login no herede el alcance de esta cuenta.
                   await AuthService.logout();
+                  await ConfigService.clearTenant();
+                  await OfflineQueueService.clear();
                   if (mounted) {
                     Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      MaterialPageRoute(builder: (_) => const OrgScreen()),
                       (route) => false,
                     );
                   }
@@ -565,7 +570,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
+                        color: Colors.grey.withValues(alpha: 0.2),
                         spreadRadius: 2,
                         blurRadius: 5,
                         offset: const Offset(0, 2),
@@ -777,7 +782,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
         // Overlay de Carga (Identidad) en el CENTRO
         if (_isConsulting)
           Container(
-            color: Colors.white.withOpacity(0.85),
+            color: Colors.white.withValues(alpha: 0.85),
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -854,7 +859,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
 
     addField('cedula', _cedulaController.text.replaceAll('-', ''));
     addField('first_name', _nombresController.text);
-    addField('last_name', (_primerApellidoController.text + ' ' + _segundoApellidoController.text).trim());
+    addField('last_name', ('${_primerApellidoController.text} ${_segundoApellidoController.text}').trim());
     addField('phone', _telefonoController.text);
     addField('email', _emailController.text);
 
@@ -945,7 +950,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
             final responseData = jsonDecode(response.body);
             errorMsg = responseData['message'] ?? errorMsg;
             if (responseData['errors'] != null) {
-              errorMsg += '\n' + responseData['errors'].toString();
+              errorMsg += '\n${responseData['errors']}';
             }
           } else {
             // Mostrar status code y body si no es JSON

@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../services/auth_service.dart';
 import '../services/config_service.dart';
+import '../services/offline_queue_service.dart';
 import '../widgets/brand_logo.dart';
 import 'main_form_screen.dart';
 import 'org_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -79,7 +80,12 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _changeOrg() async {
+    // Reset COMPLETO: se limpia el token/usuario del tenant anterior, la
+    // config del tenant y la cola offline. Sin esto la app hereda el alcance
+    // de la cuenta anterior al conectar una organizacion nueva.
+    await AuthService.clearLocalSession();
     await ConfigService.clearTenant();
+    await OfflineQueueService.clear();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const OrgScreen()),
@@ -137,7 +143,7 @@ class _LoginScreenState extends State<LoginScreen>
                             borderRadius: BorderRadius.circular(22),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.18),
+                                color: Colors.black.withValues(alpha: 0.18),
                                 blurRadius: 24,
                                 offset: const Offset(0, 10),
                               ),
@@ -245,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen>
                         Text(
                           'v1.0.0',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 12,
                           ),
                         ),

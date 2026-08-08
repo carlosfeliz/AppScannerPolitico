@@ -1,22 +1,19 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Prueba basica: la app arranca y, sin organizacion configurada,
+// lleva a la pantalla de organizacion.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:capturas/main.dart';
 
 void main() {
-  testWidgets('App loads successfully', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const CapturasApp(isAuthenticated: false));
+  testWidgets('App loads and shows organization screen',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.pumpWidget(const CapturasApp());
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(milliseconds: 500));
 
-    // Verify that the login screen is shown when not authenticated
-    expect(find.text('Login'), findsOneWidget);
-    expect(find.text('Usuario'), findsOneWidget);
-    expect(find.text('Contraseña'), findsOneWidget);
+    expect(find.text('Tu organizacion'), findsOneWidget);
   });
 }

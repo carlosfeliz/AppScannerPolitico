@@ -68,14 +68,23 @@ class AuthService {
             'Authorization': 'Bearer $token',
             'Content-Type': 'application/json',
           },
-        );
+        ).timeout(const Duration(seconds: 10));
       }
     } catch (e) {
       print('Error en logout: $e');
     } finally {
-      await storage.delete(key: 'token');
-      await storage.delete(key: 'user');
+      await clearLocalSession();
     }
+  }
+
+  /// Borra token y usuario del dispositivo SIN llamar al servidor.
+  ///
+  /// Se usa al cambiar de organizacion: un token guardado de un tenant
+  /// anterior es la causa de que la app "herede" el alcance de otra cuenta
+  /// aunque ya se haya elegido un tenant distinto.
+  static Future<void> clearLocalSession() async {
+    await storage.delete(key: 'token');
+    await storage.delete(key: 'user');
   }
 
   // Obtener token

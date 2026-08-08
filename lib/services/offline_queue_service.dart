@@ -32,6 +32,17 @@ class OfflineQueueService {
 
   static Future<int> count() async => (await _load()).length;
 
+  /// Elimina TODOS los pendientes y el registro de fallidos.
+  ///
+  /// Se usa al cambiar de organizacion: los votantes en cola pertenecen al
+  /// tenant anterior y NO deben enviarse contra el tenant nuevo (eso produce
+  /// "no es el alcance establecido" al reconectar).
+  static Future<void> clear() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
+    await prefs.remove(_failedKey);
+  }
+
   /// Guarda un votante para envio posterior. Registra la base_url del tenant
   /// activo para enviarlo al lugar correcto aunque luego se cambie de org.
   static Future<void> enqueue(Map<String, dynamic> payload) async {

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import '../services/auth_service.dart';
 import '../services/config_service.dart';
+import '../services/offline_queue_service.dart';
 import 'org_screen.dart';
 
 /// Ajustes avanzados (solo super admin). El branding y las URLs se configuran
 /// automaticamente al elegir la organizacion; esta pantalla permite un override
 /// manual de las URLs y volver a elegir organizacion.
 class AdminSettingsScreen extends StatefulWidget {
-  const AdminSettingsScreen({Key? key}) : super(key: key);
+  const AdminSettingsScreen({super.key});
 
   @override
   State<AdminSettingsScreen> createState() => _AdminSettingsScreenState();
@@ -39,7 +41,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   }
 
   Future<void> _changeOrg() async {
+    // Reset COMPLETO: token/usuario del tenant anterior, config y cola offline.
+    await AuthService.clearLocalSession();
     await ConfigService.clearTenant();
+    await OfflineQueueService.clear();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const OrgScreen()),
@@ -66,7 +71,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           children: [
             Card(
               elevation: 0,
-              color: primary.withOpacity(0.08),
+              color: primary.withValues(alpha: 0.08),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14)),
               child: ListTile(
