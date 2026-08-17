@@ -82,9 +82,9 @@ class ApiService {
           headers: headers,
           body: jsonEncode({'cedula': cleanCedula}),
         );
-        if (response.statusCode == 200) {
+        if (response.statusCode == 200 || response.statusCode == 403 || response.statusCode == 404) {
           final data = jsonDecode(response.body);
-          if (data is Map<String, dynamic> && data['success'] == true) {
+          if (data is Map<String, dynamic>) {
             return data;
           }
         }

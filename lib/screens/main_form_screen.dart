@@ -86,6 +86,9 @@ class _MainFormScreenState extends State<MainFormScreen> {
     final normalized = Map<String, dynamic>.from(raw);
 
     const pascalToSnake = {
+      'Nombres': 'nombres',
+      'PrimerApellido': 'apellido1',
+      'SegundoApellido': 'apellido2',
       'IdProvincia': 'id_provincia',
       'IdMunicipio': 'id_municipio',
       'CodigoCircunscripcion': 'codigo_circunscripcion',
@@ -155,9 +158,9 @@ class _MainFormScreenState extends State<MainFormScreen> {
       if (res['out_of_scope'] == true || (res['message'] != null && res['message'].toString().contains('demarcación'))) {
         Map<String, dynamic> rawData = res['data'] is Map ? Map<String, dynamic>.from(res['data']) : {};
         final ciudadano = _normalizarDatosPadron(rawData);
-        String nombres = ciudadano['nombres'] ?? res['nombres'] ?? '';
-        String ap1 = ciudadano['apellido1'] ?? res['apellido1'] ?? '';
-        String ap2 = ciudadano['apellido2'] ?? res['apellido2'] ?? '';
+        String nombres = ciudadano['nombres'] ?? ciudadano['Nombres'] ?? res['nombres'] ?? res['Nombres'] ?? '';
+        String ap1 = ciudadano['apellido1'] ?? ciudadano['PrimerApellido'] ?? res['apellido1'] ?? res['PrimerApellido'] ?? '';
+        String ap2 = ciudadano['apellido2'] ?? ciudadano['SegundoApellido'] ?? res['apellido2'] ?? res['SegundoApellido'] ?? '';
         String? foto = ciudadano['foto_data']?['Imagen'] ?? res['foto_url'] ?? res['foto'];
         if (foto != null && !foto.startsWith('http') && foto.contains(',')) {
           foto = foto.split(',').last;
@@ -185,9 +188,9 @@ class _MainFormScreenState extends State<MainFormScreen> {
 
         final ciudadano = _normalizarDatosPadron(rawData);
 
-        String nombres = ciudadano['nombres'] ?? '';
-        String ap1 = ciudadano['apellido1'] ?? '';
-        String ap2 = ciudadano['apellido2'] ?? '';
+        String nombres = ciudadano['nombres'] ?? ciudadano['Nombres'] ?? rawData['nombres'] ?? rawData['Nombres'] ?? '';
+        String ap1 = ciudadano['apellido1'] ?? ciudadano['PrimerApellido'] ?? rawData['apellido1'] ?? rawData['PrimerApellido'] ?? '';
+        String ap2 = ciudadano['apellido2'] ?? ciudadano['SegundoApellido'] ?? rawData['apellido2'] ?? rawData['SegundoApellido'] ?? '';
 
         if (nombres.isEmpty && res['nombre_completo'] != null) {
           final partes = (res['nombre_completo'] as String).trim().split(RegExp(r'\s+'));
