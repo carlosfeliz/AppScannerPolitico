@@ -52,7 +52,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
 
   // Encabezado de seccion con barra de acento del color del tenant
   Widget _sectionHeader(String title, IconData icon) {
-    final primary = ConfigService.getPrimaryColor();
+    final primary = _isOutOfScope ? const Color(0xFFDC2626) : ConfigService.getPrimaryColor();
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -375,8 +375,8 @@ class _MainFormScreenState extends State<MainFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Datos del Ciudadano'),
-        backgroundColor: ConfigService.getPrimaryColor(),
+        title: Text(_isOutOfScope ? '⚠️ FUERA DE DEMARCACIÓN' : 'Datos del Ciudadano'),
+        backgroundColor: _isOutOfScope ? const Color(0xFFDC2626) : ConfigService.getPrimaryColor(),
         foregroundColor: Colors.white,
         elevation: 0,
         automaticallyImplyLeading: false,
@@ -831,7 +831,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
                 ElevatedButton(
                   onPressed: _isLoading ? null : _guardarVotante,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
+                    backgroundColor: _isOutOfScope ? const Color(0xFFDC2626) : ConfigService.getPrimaryColor(),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
@@ -844,11 +844,11 @@ class _MainFormScreenState extends State<MainFormScreen> {
                           width: 20,
                           child: CircularProgressIndicator(color: Colors.white),
                         )
-                      : const Center(
+                      : Center(
                           child: Text(
-                            'Guardar',
-                            style: TextStyle(
-                              fontSize: 20,
+                            _isOutOfScope ? '⛔ Demarcación No Permitida' : 'Guardar',
+                            style: const TextStyle(
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
