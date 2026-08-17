@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../services/config_service.dart';
 import '../services/update_service.dart';
 import '../widgets/update_dialog.dart';
@@ -10,7 +11,7 @@ import 'qr_config_scanner_screen.dart';
 /// Pantalla de seleccion de organizacion (tenant). El usuario escribe el codigo
 /// que le dio su administrador; la app baja la config real y la deja activa.
 class OrgScreen extends StatefulWidget {
-  const OrgScreen({Key? key}) : super(key: key);
+  const OrgScreen({super.key});
 
   @override
   State<OrgScreen> createState() => _OrgScreenState();
@@ -123,6 +124,7 @@ class _OrgScreenState extends State<OrgScreen>
       return;
     }
 
+    await AuthService.clearLocalSession();
     await ConfigService.applyMobileConfig(code, data);
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -203,10 +205,10 @@ class _OrgScreenState extends State<OrgScreen>
                         width: 96,
                         height: 96,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
+                          color: Colors.white.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                           border: Border.all(
-                              color: Colors.white.withOpacity(0.3), width: 2),
+                              color: Colors.white.withValues(alpha: 0.3), width: 2),
                         ),
                         child: Image.asset(
                           'assets/images/SiselectSolo.png',
@@ -229,7 +231,7 @@ class _OrgScreenState extends State<OrgScreen>
                         'Ingresa el codigo que te dio tu administrador para conectar la app.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.8),
+                          color: Colors.white.withValues(alpha: 0.8),
                           fontSize: 15,
                           height: 1.4,
                         ),
@@ -242,7 +244,7 @@ class _OrgScreenState extends State<OrgScreen>
                           borderRadius: BorderRadius.circular(22),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.18),
+                              color: Colors.black.withValues(alpha: 0.18),
                               blurRadius: 24,
                               offset: const Offset(0, 10),
                             ),
@@ -284,7 +286,7 @@ class _OrgScreenState extends State<OrgScreen>
                                 // quedaria tal cual.
                                 FilteringTextInputFormatter.allow(
                                     RegExp(r'[a-zA-Z0-9\-]')),
-                                TextInputFormatter.withFunction(_formatearClave),
+                                const TextInputFormatter.withFunction(_formatearClave),
                               ],
                               onSubmitted: (_) => _connect(),
                               decoration: InputDecoration(
@@ -318,7 +320,7 @@ class _OrgScreenState extends State<OrgScreen>
                                 ),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: primary,
-                                  side: BorderSide(color: primary, width: 1.6),
+                                  side: const BorderSide(color: primary, width: 1.6),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(14),
                                   ),

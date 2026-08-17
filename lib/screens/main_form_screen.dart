@@ -7,6 +7,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
 import '../services/offline_queue_service.dart';
 import 'org_screen.dart';
 import 'package:flutter/services.dart';
@@ -134,7 +135,8 @@ class _MainFormScreenState extends State<MainFormScreen> {
 
   // Consulta al padrón
   Future<void> _consultarPadron(String cedulaSinGuiones) async {
-    if (cedulaSinGuiones.length != 11) {
+    final clean = cedulaSinGuiones.replaceAll(RegExp(r'\D'), '');
+    if (clean.length != 11) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('La cédula debe tener 11 dígitos')),
       );
@@ -143,36 +145,84 @@ class _MainFormScreenState extends State<MainFormScreen> {
 
     setState(() {
       _isConsulting = true;
+      _isOutOfScope = false;
+      _outOfScopeMessage = '';
     });
 
     try {
-      final url = Uri.parse('$_baseUrl?cedula=$cedulaSinGuiones');
-      final response = await http.get(url);
+      final res = await ApiService.consultarPadron(clean);
 
-      if (response.statusCode == 200 || response.statusCode == 404) {
-        final data = jsonDecode(response.body);
-        if (data['success'] == true && data['data'] != null) {
-          final raw = Map<String, dynamic>.from(data['data']);
-          final ciudadano = _normalizarDatosPadron(raw);
-          setState(() {
-            _nombresController.text = ciudadano['nombres'] ?? '';
-            _primerApellidoController.text = ciudadano['apellido1'] ?? '';
-            _segundoApellidoController.text = ciudadano['apellido2'] ?? '';
-            _fotoBase64 = ciudadano['foto_data']?['Imagen'];
-            _datosPadron = ciudadano;
-          });
-        } else {
-          _clearCiudadanoData();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('❌ Ciudadano no encontrado en el padrón'),
-            ),
-          );
+      if (res['out_of_scope'] == true || (res['message'] != null && res['message'].toString().contains('demarcación'))) {
+        Map<String, dynamic> rawData = res['data'] is Map ? Map<String, dynamic>.from(res['data']) : {};
+        final ciudadano = _normalizarDatosPadron(rawData);
+        String nombres = ciudadano['nombres'] ?? res['nombres'] ?? '';
+        String ap1 = ciudadano['apellido1'] ?? res['apellido1'] ?? '';
+        String ap2 = ciudadano['apellido2'] ?? res['apellido2'] ?? '';
+        String? foto = ciudadano['foto_data']?['Imagen'] ?? res['foto_url'] ?? res['foto'];
+        if (foto != null && !foto.startsWith('http') && foto.contains(',')) {
+          foto = foto.split(',').last;
         }
+
+        setState(() {
+          _nombresController.text = nombres;
+          _primerApellidoController.text = ap1;
+          _segundoApellidoController.text = ap2;
+          _fotoBase64 = foto;
+          _datosPadron = ciudadano;
+          _isOutOfScope = true;
+          _outOfScopeMessage = res['message'] ?? '⛔ Este ciudadano no pertenece a la demarcación geográfica establecida para tu cuenta.';
+        });
+        return;
+      }
+
+      if (res['success'] == true) {
+        Map<String, dynamic> rawData = {};
+        if (res['data'] is Map) {
+          rawData = Map<String, dynamic>.from(res['data']);
+        } else {
+          rawData = Map<String, dynamic>.from(res);
+        }
+
+        final ciudadano = _normalizarDatosPadron(rawData);
+
+        String nombres = ciudadano['nombres'] ?? '';
+        String ap1 = ciudadano['apellido1'] ?? '';
+        String ap2 = ciudadano['apellido2'] ?? '';
+
+        if (nombres.isEmpty && res['nombre_completo'] != null) {
+          final partes = (res['nombre_completo'] as String).trim().split(RegExp(r'\s+'));
+          if (partes.length == 1) {
+            nombres = partes[0];
+          } else if (partes.length == 2) {
+            nombres = partes[0];
+            ap1 = partes[1];
+          } else if (partes.length >= 3) {
+            nombres = partes.sublist(0, partes.length - 2).join(' ');
+            ap1 = partes[partes.length - 2];
+            ap2 = partes[partes.length - 1];
+          }
+        }
+
+        String? foto = ciudadano['foto_data']?['Imagen'] ?? res['foto_url'] ?? res['foto'];
+        if (foto != null && !foto.startsWith('http') && foto.contains(',')) {
+          foto = foto.split(',').last;
+        }
+
+        setState(() {
+          _nombresController.text = nombres;
+          _primerApellidoController.text = ap1;
+          _segundoApellidoController.text = ap2;
+          _fotoBase64 = foto;
+          _datosPadron = ciudadano;
+          _isOutOfScope = false;
+          _outOfScopeMessage = '';
+        });
       } else {
         _clearCiudadanoData();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⚠️ Error al consultar el padrón')),
+          SnackBar(
+            content: Text(res['message'] ?? '❌ Ciudadano no encontrado en el padrón'),
+          ),
         );
       }
     } catch (e) {
@@ -196,6 +246,8 @@ class _MainFormScreenState extends State<MainFormScreen> {
   }
   Map<String, dynamic>? _datosPadron;
   Map<String, dynamic>? _datosEnlace;
+  bool _isOutOfScope = false;
+  String _outOfScopeMessage = '';
   final TextEditingController _cedulaController = TextEditingController();
   final TextEditingController _nombresController = TextEditingController();
   final TextEditingController _primerApellidoController =
@@ -280,25 +332,23 @@ class _MainFormScreenState extends State<MainFormScreen> {
   }
 
   void _onCedulaEnlaceChanged() async {
-    final cedula = _cedulaEnlaceController.text.replaceAll('-', '');
+    final cedula = _cedulaEnlaceController.text.replaceAll(RegExp(r'\D'), '');
     if (cedula.length == 11) {
       try {
-        final url = Uri.parse('$_baseUrl?cedula=$cedula');
-        final response = await http.get(url);
-        if (response.statusCode == 200 || response.statusCode == 404) {
-          final data = jsonDecode(response.body);
-          if (data['success'] == true && data['data'] != null) {
-            final ciudadano = data['data'];
-            setState(() {
-              _nombreEnlaceController.text = ((ciudadano['nombres'] ?? '') + ' ' + (ciudadano['apellido1'] ?? '') + ' ' + (ciudadano['apellido2'] ?? '')).trim();
-              _datosEnlace = ciudadano;
-            });
-          } else {
-            setState(() {
-              _nombreEnlaceController.text = '';
-              _datosEnlace = null;
-            });
-          }
+        final res = await ApiService.consultarPadron(cedula);
+        if (res['success'] == true) {
+          final raw = res['data'] is Map ? Map<String, dynamic>.from(res['data']) : res;
+          final nombre = raw['nombre_completo'] ??
+              ((raw['nombres'] ?? '') + ' ' + (raw['apellido1'] ?? '') + ' ' + (raw['apellido2'] ?? '')).trim();
+          setState(() {
+            _nombreEnlaceController.text = nombre;
+            _datosEnlace = Map<String, dynamic>.from(raw);
+          });
+        } else {
+          setState(() {
+            _nombreEnlaceController.text = '';
+            _datosEnlace = null;
+          });
         }
       } catch (e) {
         setState(() {
@@ -317,8 +367,6 @@ class _MainFormScreenState extends State<MainFormScreen> {
   bool _isLoading = false;
   bool _isConsulting = false;
   String? _fotoBase64;
-
-  String get _baseUrl => ConfigService.getPadronUrl();
 
   @override
   Widget build(BuildContext context) {
@@ -557,7 +605,9 @@ class _MainFormScreenState extends State<MainFormScreen> {
                         child: Center(
                           child: CircleAvatar(
                             radius: 60,
-                            backgroundImage: MemoryImage(base64Decode(_fotoBase64!)),
+                            backgroundImage: _fotoBase64!.startsWith('http')
+                                ? NetworkImage(_fotoBase64!)
+                                : MemoryImage(base64Decode(_fotoBase64!)) as ImageProvider,
                             backgroundColor: Colors.grey[200],
                           ),
                         ),
@@ -654,8 +704,36 @@ class _MainFormScreenState extends State<MainFormScreen> {
                         ],
                       ), // <-- cierra Row
                     ],   // <-- cierra lista de hijos del Column
-                  ),   // <-- cierra Column (del Container)
                   ),     // <-- cierra Container
+                ),
+                if (_isOutOfScope)
+                  Container(
+                    margin: const EdgeInsets.only(top: 14),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFEF4444), width: 1.5),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.gpp_maybe_rounded, color: Color(0xFFDC2626), size: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _outOfScopeMessage.isNotEmpty
+                                ? _outOfScopeMessage
+                                : '⛔ Este ciudadano no pertenece a la demarcación geográfica establecida para tu cuenta.',
+                            style: const TextStyle(
+                              color: Color(0xFF991B1B),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 20),
 
                 // === Información Personal ===
@@ -833,6 +911,16 @@ class _MainFormScreenState extends State<MainFormScreen> {
   }
   // MÉTODOS DE GUARDADO Y LIMPIEZA
   Future<void> _guardarVotante() async {
+    if (_isOutOfScope) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_outOfScopeMessage.isNotEmpty ? _outOfScopeMessage : '⛔ No puedes guardar un ciudadano fuera de tu demarcación.'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+      return;
+    }
+
     if (_cedulaController.text.isEmpty ||
         _telefonoController.text.isEmpty ||
         _nombresController.text.isEmpty ||
@@ -999,6 +1087,8 @@ class _MainFormScreenState extends State<MainFormScreen> {
       _fotoBase64 = null;
       _datosPadron = null;
       _datosEnlace = null;
+      _isOutOfScope = false;
+      _outOfScopeMessage = '';
     });
   }
 }

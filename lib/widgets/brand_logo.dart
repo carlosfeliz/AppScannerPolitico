@@ -8,8 +8,7 @@ class BrandLogo extends StatelessWidget {
   final double size;
   final Color? fallbackColor;
 
-  const BrandLogo({Key? key, this.size = 120, this.fallbackColor})
-      : super(key: key);
+  const BrandLogo({super.key, this.size = 120, this.fallbackColor});
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +44,7 @@ class BrandLogo extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
+            color: Colors.black.withValues(alpha: 0.15),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),

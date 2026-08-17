@@ -67,15 +67,58 @@ class ApiService {
 
   // Consultar padrón electoral externo
   static Future<Map<String, dynamic>> consultarPadron(String cedula) async {
-    try {
-      final url = Uri.parse('$padronUrl?cedula=$cedula');
-      final response = await http.get(url);
+    final cleanCedula = cedula.replaceAll(RegExp(r'\D'), '');
+    if (cleanCedula.length != 11) {
+      return {'success': false, 'message': 'La cédula debe tener 11 dígitos'};
+    }
 
-      if (response.statusCode == 200) {
-        if (response.headers['content-type']?.contains('application/json') ?? false) {
-          return jsonDecode(response.body);
+    // 1. Si hay un tenant activo (ej. tobiascrespo.siselecto.com), consultar primero a /voters/search-padron
+    if (ConfigService.hasTenant()) {
+      try {
+        final tenantUrl = '${ConfigService.getBaseUrl()}/voters/search-padron';
+        final headers = await _getHeaders();
+        final response = await http.post(
+          Uri.parse(tenantUrl),
+          headers: headers,
+          body: jsonEncode({'cedula': cleanCedula}),
+        );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data is Map<String, dynamic> && data['success'] == true) {
+            return data;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 2. Fallback al padronUrl configurado o público
+    final pUrl = padronUrl;
+    try {
+      final headers = await _getHeaders();
+      http.Response response;
+      if (pUrl.contains('public-lookup') || pUrl.contains('search-padron') || !pUrl.contains('consulta')) {
+        response = await http.post(
+          Uri.parse(pUrl),
+          headers: headers,
+          body: jsonEncode({'cedula': cleanCedula}),
+        );
+      } else {
+        response = await http.get(
+          Uri.parse('$pUrl?cedula=$cleanCedula'),
+          headers: headers,
+        );
+      }
+
+      if (response.statusCode == 200 || response.statusCode == 404) {
+        final isJson = response.headers['content-type']?.contains('application/json') ?? false;
+        if (isJson || response.body.trim().startsWith('{')) {
+          final data = jsonDecode(response.body);
+          if (data is Map<String, dynamic>) {
+            return data;
+          }
         }
       }
+
       return {'success': false, 'message': 'El padrón no respondió con datos válidos (${response.statusCode})'};
     } catch (e) {
       return {'success': false, 'message': 'Error de red o formato: $e'};

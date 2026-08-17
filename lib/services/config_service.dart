@@ -38,7 +38,7 @@ class ConfigService {
   static const Color fallbackPrimary = Color(0xFF002855);
   static const Color fallbackButton = Color(0xFF007BFF);
   static const String defaultPadronUrl =
-      'https://padron-api-production-5296.up.railway.app/api/consulta';
+      'https://api.siselecto.com/api/verificacion/public-lookup';
 
   static SharedPreferences? _prefs;
 
@@ -46,11 +46,11 @@ class ConfigService {
     _prefs = await SharedPreferences.getInstance();
 
     // Migracion: limpiar cualquier rastro de las URLs viejas hardcodeadas
-    // (Gilber / Sanz Lovaton) para forzar el flujo multi-tenant nuevo.
     final currentUrl = _prefs?.getString(_keyBaseUrl);
-    // OJO: no incluir 'siselect' aqui — todas las URLs de produccion son
-    // {slug}.siselecto.com y borrarian la sesion en cada arranque. Solo se
-    // limpian las URLs viejas hardcodeadas (Gilber / Sanz Lovaton).
+    final padronUrl = _prefs?.getString(_keyPadronUrl);
+    if (padronUrl != null && padronUrl.contains('railway')) {
+      await _prefs?.remove(_keyPadronUrl);
+    }
     if (currentUrl != null &&
         (currentUrl.contains('sanzlovaton') ||
             currentUrl.contains('gilbergomez') ||
@@ -69,8 +69,13 @@ class ConfigService {
     return url;
   }
 
-  static String getPadronUrl() =>
-      _prefs?.getString(_keyPadronUrl) ?? defaultPadronUrl;
+  static String getPadronUrl() {
+    final url = _prefs?.getString(_keyPadronUrl) ?? '';
+    if (url.isEmpty || url.contains('railway')) {
+      return defaultPadronUrl;
+    }
+    return url;
+  }
 
   static String getTenantSlug() => _prefs?.getString(_keyTenantSlug) ?? '';
 

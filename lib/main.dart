@@ -9,7 +9,7 @@ void main() async {
 }
 
 class CapturasApp extends StatelessWidget {
-  const CapturasApp({Key? key}) : super(key: key);
+  const CapturasApp({super.key});
 
   @override
   Widget build(BuildContext context) {

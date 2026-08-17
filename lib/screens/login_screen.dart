@@ -52,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
+    await AuthService.clearLocalSession();
 
     final result = await AuthService.login(
       _usernameController.text.trim(),

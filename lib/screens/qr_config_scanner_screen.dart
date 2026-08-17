@@ -11,7 +11,7 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 /// El contenido del QR es `siselect://config?slug=xxx&key=yyy`, generado por
 /// `MobileAppRelease::qrPayload()` en el backend.
 class QrConfigScannerScreen extends StatefulWidget {
-  const QrConfigScannerScreen({Key? key}) : super(key: key);
+  const QrConfigScannerScreen({super.key});
 
   @override
   State<QrConfigScannerScreen> createState() => _QrConfigScannerScreenState();
@@ -197,7 +197,7 @@ class _QrConfigScannerScreenState extends State<QrConfigScannerScreen> {
                         'Apunte al codigo QR que aparece en el panel de su organizacion',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 14,
                         ),
                       ),
