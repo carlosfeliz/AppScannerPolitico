@@ -1,7 +1,7 @@
 name: capturas
 description: Aplicación de captura de votantes con escaneo OCR
 publish_to: 'none'
-version: 1.0.3+5
+version: 1.0.4+6
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -39,6 +39,7 @@ dependencies:
   open_filex: ^4.5.0
   cached_network_image: ^3.4.1
   connectivity_plus: ^6.1.0
+  image: ^4.12.0
 
 dev_dependencies:
   flutter_test:

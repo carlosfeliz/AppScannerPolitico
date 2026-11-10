@@ -21,6 +21,10 @@ class UpdateService {
 
   static UpdateInfo? get pending => _pending;
 
+  /// Id de la ultima version que el usuario ya vio o descargo.
+  /// Evita que el dialogo reaparezca en cada llamada a check().
+  static int _dismissedVersion = 0;
+
   /// Compara la version instalada contra la que informa el servidor.
   /// Se le pasa el mapa `app_update` tal cual viene de la API.
   static Future<UpdateInfo?> check(Map<String, dynamic>? appUpdate) async {
@@ -42,6 +46,11 @@ class UpdateService {
       return null;
     }
 
+    // Si el usuario ya descargo o descarto esta version, no volver a mostrar.
+    if (latest <= _dismissedVersion) {
+      return null;
+    }
+
     _pending = UpdateInfo(
       currentVersion: current,
       latestVersion: latest,
@@ -53,6 +62,15 @@ class UpdateService {
       mandatory: current < min,
     );
     return _pending;
+  }
+
+  /// Marca la version actual como vista/descargada para no mostrar el dialogo
+  /// otra vez hasta que aparezca una version nueva.
+  static void dismiss() {
+    if (_pending != null) {
+      _dismissedVersion = _pending!.latestVersion;
+    }
+    _pending = null;
   }
 
   static int _asInt(dynamic v) =>

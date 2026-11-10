@@ -251,6 +251,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
   Map<String, dynamic>? _datosEnlace;
   bool _isOutOfScope = false;
   String _outOfScopeMessage = '';
+  String _userScopeDescription = '';
   final TextEditingController _cedulaController = TextEditingController();
   final TextEditingController _nombresController = TextEditingController();
   final TextEditingController _primerApellidoController =
@@ -275,6 +276,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
     _cedulaEnlaceController.addListener(_onCedulaEnlaceChanged);
     _checkSuperAdmin();
     _refreshPending();
+    _loadUserScope();
     // Intento inicial + auto-sincronizacion al recuperar conexion.
     _syncPending(silent: true);
     _connSub = Connectivity().onConnectivityChanged.listen((results) {
@@ -324,6 +326,15 @@ class _MainFormScreenState extends State<MainFormScreen> {
           _isSuperAdmin = true;
         });
       }
+    }
+  }
+
+  Future<void> _loadUserScope() async {
+    final user = await AuthService.getUser();
+    if (user != null && user['scope_description'] != null && (user['scope_description'] as String).isNotEmpty) {
+      setState(() {
+        _userScopeDescription = user['scope_description'];
+      });
     }
   }
 
@@ -450,7 +461,7 @@ class _MainFormScreenState extends State<MainFormScreen> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const AdminSettingsScreen()),
-                  ).then((_) => setState(() {}));
+                  ).then((_) { if (mounted) setState(() {}); });
                 },
               ),
             ),
@@ -718,22 +729,42 @@ class _MainFormScreenState extends State<MainFormScreen> {
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: const Color(0xFFEF4444), width: 1.5),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.gpp_maybe_rounded, color: Color(0xFFDC2626), size: 28),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _outOfScopeMessage.isNotEmpty
-                                ? _outOfScopeMessage
-                                : '⛔ Este ciudadano no pertenece a la demarcación geográfica establecida para tu cuenta.',
-                            style: const TextStyle(
-                              color: Color(0xFF991B1B),
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.gpp_maybe_rounded, color: Color(0xFFDC2626), size: 28),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                _outOfScopeMessage.isNotEmpty
+                                    ? _outOfScopeMessage
+                                    : 'Este ciudadano no pertenece a la demarcación geográfica establecida para tu cuenta.',
+                                style: const TextStyle(
+                                  color: Color(0xFF991B1B),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_userScopeDescription.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 40),
+                            child: Text(
+                              'Tu alcance: $_userScopeDescription',
+                              style: const TextStyle(
+                                color: Color(0xFF7F1D1D),
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -793,7 +824,9 @@ class _MainFormScreenState extends State<MainFormScreen> {
                     child: Center(
                       child: CircleAvatar(
                         radius: 48,
-                        backgroundImage: MemoryImage(base64Decode(_fotoBase64!)),
+                        backgroundImage: _fotoBase64!.startsWith('http')
+                            ? NetworkImage(_fotoBase64!)
+                            : MemoryImage(base64Decode(_fotoBase64!)) as ImageProvider,
                         backgroundColor: Colors.grey[200],
                       ),
                     ),
@@ -954,9 +987,15 @@ class _MainFormScreenState extends State<MainFormScreen> {
     addField('phone', _telefonoController.text);
     addField('email', _emailController.text);
 
-    // Foto en formato base64 con prefijo
+    // Foto: si es base64 puro, enviarlo como data URI; si es HTTP URL ya
+    // esta almacenada en R2 y el backend la resuelve por cedula en el store.
     if (_fotoBase64 != null && _fotoBase64!.isNotEmpty) {
-      addField('photo_path', 'data:image/jpeg;base64,${_fotoBase64!}');
+      if (_fotoBase64!.startsWith('http')) {
+        // URL ya almacenada en R2 -- el backend fallback resuelve por cedula
+        addField('photo_url', _fotoBase64!);
+      } else {
+        addField('photo_path', 'data:image/jpeg;base64,${_fotoBase64!}');
+      }
     }
 
     // Datos del padrón (si existen)

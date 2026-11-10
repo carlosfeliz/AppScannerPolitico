@@ -44,7 +44,18 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    final authed = await AuthService.isAuthenticated();
+    // El almacenamiento seguro puede fallar o tardar (llave corrupta tras
+    // actualizar la app). Nunca dejar el splash colgado: ante cualquier
+    // problema se va al login.
+    bool authed = false;
+    try {
+      authed = await AuthService.isAuthenticated()
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      try {
+        await AuthService.clearLocalSession();
+      } catch (_) {}
+    }
     if (!mounted) return;
     _go(authed ? const MainFormScreen() : const LoginScreen());
   }
@@ -62,9 +73,10 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final primary = ConfigService.getPrimaryColor();
-    final secondary = ConfigService.getSecondaryColor();
-    final tenantName = ConfigService.getTenantName();
+    // Splash neutro: todavia no se ha entrado a ninguna organizacion, asi que
+    // no se muestra su nombre, logo ni colores. Eso se aplica despues.
+    const primary = ConfigService.fallbackPrimary;
+    final secondary = Color.lerp(primary, Colors.black, 0.35) ?? primary;
 
     return Scaffold(
       body: Container(
@@ -83,22 +95,18 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const BrandLogo(size: 160),
+                  const BrandLogo(size: 160, platformOnly: true),
                   const SizedBox(height: 36),
-                  if (tenantName.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        tenantName.toUpperCase(),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 1.5,
-                        ),
-                      ),
+                  const Text(
+                    'SISELECT',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: 1.5,
                     ),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'CAPTURAS',

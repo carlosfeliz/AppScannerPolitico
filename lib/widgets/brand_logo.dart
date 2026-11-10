@@ -8,11 +8,20 @@ class BrandLogo extends StatelessWidget {
   final double size;
   final Color? fallbackColor;
 
-  const BrandLogo({super.key, this.size = 120, this.fallbackColor});
+  /// Ignora el logo del tenant y muestra siempre la marca de la plataforma
+  /// (splash: aun no se ha entrado a ninguna organizacion).
+  final bool platformOnly;
+
+  const BrandLogo({
+    super.key,
+    this.size = 120,
+    this.fallbackColor,
+    this.platformOnly = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final logoUrl = ConfigService.getLogoUrl();
+    final logoUrl = platformOnly ? '' : ConfigService.getLogoUrl();
     final fallback = _fallback(context);
 
     if (logoUrl.isEmpty) return fallback;

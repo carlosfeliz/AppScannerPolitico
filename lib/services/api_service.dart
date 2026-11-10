@@ -72,7 +72,9 @@ class ApiService {
       return {'success': false, 'message': 'La cédula debe tener 11 dígitos'};
     }
 
-    // 1. Si hay un tenant activo (ej. tobiascrespo.siselecto.com), consultar primero a /voters/search-padron
+    // 1. Si hay un tenant activo, SIEMPRE usar el backend del tenant
+    // porque es el unico que puede validar el alcance geografico del usuario.
+    // Si falla, retornar error en vez de caer al padron publico (que no valida alcance).
     if (ConfigService.hasTenant()) {
       try {
         final tenantUrl = '${ConfigService.getBaseUrl()}/voters/search-padron';
@@ -81,17 +83,28 @@ class ApiService {
           Uri.parse(tenantUrl),
           headers: headers,
           body: jsonEncode({'cedula': cleanCedula}),
-        );
+        ).timeout(const Duration(seconds: 15));
         if (response.statusCode == 200 || response.statusCode == 403 || response.statusCode == 404) {
           final data = jsonDecode(response.body);
           if (data is Map<String, dynamic>) {
             return data;
           }
         }
-      } catch (_) {}
+        // Cualquier otro status (500, timeout, etc.) -> retornar error
+        // en vez de caer al padron publico sin validacion de alcance
+        return {
+          'success': false,
+          'message': 'Error del servidor de la organización (${response.statusCode}). No se pudo validar el alcance geográfico.'
+        };
+      } catch (e) {
+        return {
+          'success': false,
+          'message': 'Error de conexión con la organización. Verifique su conexión a internet.'
+        };
+      }
     }
 
-    // 2. Fallback al padronUrl configurado o público
+    // 2. Solo llegar aqui si NO hay tenant configurado (sin alcance que validar)
     final pUrl = padronUrl;
     try {
       final headers = await _getHeaders();
@@ -135,7 +148,7 @@ class ApiService {
       
       for (int i = 0; i < 10; i++) {
         int digit = digits[i];
-        if (i % 2 == 0) {
+        if (i % 2 == 1) {
           digit *= 2;
           if (digit > 9) digit -= 9;
         }

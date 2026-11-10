@@ -19,7 +19,9 @@ class UpdateDialog extends StatefulWidget {
       context: context,
       barrierDismissible: !update.mandatory,
       builder: (_) => UpdateDialog(update: update),
-    );
+    ).then((_) {
+      if (!update.mandatory) UpdateService.dismiss();
+    });
   }
 
   @override
@@ -128,7 +130,10 @@ class _UpdateDialogState extends State<UpdateDialog> {
         actions: [
           if (!u.mandatory && !_downloading)
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () {
+                UpdateService.dismiss();
+                Navigator.of(context).pop();
+              },
               child: const Text('Despues'),
             ),
           ElevatedButton(

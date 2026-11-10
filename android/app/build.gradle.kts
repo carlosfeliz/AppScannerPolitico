@@ -5,6 +5,14 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+import java.util.Properties
+
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
 android {
     namespace = "com.example.capturas"
     compileSdk = flutter.compileSdkVersion
@@ -33,6 +41,18 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Solo arm64: ML Kit trae tambien x86_64 y armv7 aunque no se usen.
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
+    }
+
+    // Comprime las librerias nativas dentro del APK (por defecto van sin
+    // comprimir y el archivo pesa mucho mas para subir/descargar).
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     // Dos aplicaciones distintas desde el mismo codigo. Como el identificador
@@ -59,11 +79,18 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String?
+            keyPassword = keystoreProperties["keyPassword"] as String?
+            storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }
+            storePassword = keystoreProperties["storePassword"] as String?
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(

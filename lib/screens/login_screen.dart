@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../services/auth_service.dart';
 import '../services/config_service.dart';
 import '../services/offline_queue_service.dart';
@@ -26,10 +27,12 @@ class _LoginScreenState extends State<LoginScreen>
   late final AnimationController _anim;
   late final Animation<double> _fade;
   late final Animation<Offset> _slide;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
+    _loadVersion();
     _anim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -38,6 +41,11 @@ class _LoginScreenState extends State<LoginScreen>
     _slide = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
         .animate(CurvedAnimation(parent: _anim, curve: Curves.easeOutCubic));
     _anim.forward();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) setState(() => _appVersion = 'v${info.version}');
   }
 
   @override
@@ -64,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     if (result['success'] == true) {
       Fluttertoast.showToast(
-        msg: 'Bienvenido ${result['data']['user']['name']}',
+        msg: 'Bienvenido ${result['data']?['user']?['name'] ?? ''}',
         backgroundColor: Colors.green.shade600,
         textColor: Colors.white,
       );
@@ -250,7 +258,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'v1.0.0',
+                          _appVersion,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 12,
