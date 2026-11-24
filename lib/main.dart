@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_navigator.dart';
 import 'services/config_service.dart';
 import 'screens/splash_screen.dart';
 
@@ -16,6 +17,8 @@ class CapturasApp extends StatelessWidget {
     final primary = ConfigService.getPrimaryColor();
     return MaterialApp(
       title: 'Capturas',
+      navigatorKey: appNavigatorKey,
+      scaffoldMessengerKey: appMessengerKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

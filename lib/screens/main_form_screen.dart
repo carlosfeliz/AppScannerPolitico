@@ -1067,6 +1067,13 @@ class _MainFormScreenState extends State<MainFormScreen> {
         headers: headers,
         body: jsonEncode(voterData),
       ).timeout(const Duration(seconds: 20));
+      if (response.statusCode == 401) {
+        // Token vencido: se conserva la captura en el telefono y se manda al
+        // login. Se enviara sola al volver a iniciar sesion.
+        await OfflineQueueService.enqueue(voterData);
+        await AuthService.handleUnauthorized();
+        return;
+      }
       final contentType = response.headers['content-type'] ?? '';
       if (response.statusCode == 201 && contentType.contains('application/json')) {
         ScaffoldMessenger.of(context).showSnackBar(

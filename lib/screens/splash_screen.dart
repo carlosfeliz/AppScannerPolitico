@@ -51,6 +51,9 @@ class _SplashScreenState extends State<SplashScreen>
     try {
       authed = await AuthService.isAuthenticated()
           .timeout(const Duration(seconds: 5));
+      // Renueva el token si ya es viejo; si el servidor dice que expiro, la
+      // sesion local ya se borro y se va directo al login.
+      if (authed) authed = await AuthService.refreshTokenIfNeeded();
     } catch (_) {
       try {
         await AuthService.clearLocalSession();

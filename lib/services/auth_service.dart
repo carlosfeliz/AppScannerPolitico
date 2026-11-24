@@ -1,11 +1,90 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../app_navigator.dart';
+import '../screens/login_screen.dart';
 import 'config_service.dart';
 
 class AuthService {
   static String get baseUrl => ConfigService.getBaseUrl();
   static const storage = FlutterSecureStorage();
+
+  static const String sessionExpiredMessage =
+      'Sesión expirada. Inicie sesión nuevamente.';
+  static const String _keyTokenSavedAt = 'token_saved_at';
+
+  /// Pasado este tiempo desde que se guardo el token, se pide uno nuevo al
+  /// abrir la app. Asi, mientras el usuario entre al menos una vez dentro de la
+  /// vigencia del token (30 dias), la sesion nunca se corta.
+  static const Duration _refreshAfter = Duration(days: 1);
+
+  static bool _handlingUnauthorized = false;
+
+  /// El servidor rechazo el token (401): se borra la sesion local, se avisa y se
+  /// lleva al usuario al login. Es idempotente: varias llamadas fallando a la
+  /// vez solo disparan una navegacion. NO borra la cola offline, para que las
+  /// capturas pendientes se envien al volver a iniciar sesion.
+  static Future<void> handleUnauthorized() async {
+    if (_handlingUnauthorized) return;
+    _handlingUnauthorized = true;
+    Future.delayed(const Duration(seconds: 3), () => _handlingUnauthorized = false);
+
+    await clearLocalSession();
+    _showSessionExpired();
+    appNavigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
+  static void _showSessionExpired() {
+    appMessengerKey.currentState
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text(sessionExpiredMessage)));
+  }
+
+  /// Renueva el token si ya tiene mas de un dia. Devuelve false SOLO si el
+  /// servidor confirma que la sesion no es valida (401); ante cualquier fallo
+  /// de red devuelve true para no bloquear el trabajo sin conexion.
+  static Future<bool> refreshTokenIfNeeded() async {
+    try {
+      final token = await getToken();
+      if (token == null || token.isEmpty) return false;
+
+      final savedRaw = await storage.read(key: _keyTokenSavedAt);
+      final saved = savedRaw == null ? null : DateTime.tryParse(savedRaw);
+      if (saved != null && DateTime.now().difference(saved) < _refreshAfter) {
+        return true;
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/refresh'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final newToken = jsonDecode(response.body)['token'];
+        if (newToken is String && newToken.isNotEmpty) {
+          await storage.write(key: 'token', value: newToken);
+          await storage.write(
+              key: _keyTokenSavedAt, value: DateTime.now().toIso8601String());
+        }
+        return true;
+      }
+      if (response.statusCode == 401) {
+        await clearLocalSession();
+        _showSessionExpired();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return true;
+    }
+  }
 
   // Login
   static Future<Map<String, dynamic>> login(
@@ -30,6 +109,8 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await storage.write(key: 'token', value: data['token']);
+        await storage.write(
+            key: _keyTokenSavedAt, value: DateTime.now().toIso8601String());
         await storage.write(key: 'user', value: jsonEncode(data['user']));
         return {'success': true, 'data': data};
       } else {
@@ -84,6 +165,7 @@ class AuthService {
   /// aunque ya se haya elegido un tenant distinto.
   static Future<void> clearLocalSession() async {
     await storage.delete(key: 'token');
+    await storage.delete(key: _keyTokenSavedAt);
     await storage.delete(key: 'user');
   }
 

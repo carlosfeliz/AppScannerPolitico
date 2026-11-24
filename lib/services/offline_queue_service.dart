@@ -99,8 +99,15 @@ class OfflineQueueService {
           // Rechazo permanente (validacion / duplicado): no reintentar.
           item['last_error'] = response.body;
           failed.add(item);
+        } else if (response.statusCode == 401) {
+          // Token vencido: se conserva este y el resto de la cola y se manda al
+          // login; se enviaran al volver a iniciar sesion.
+          remaining.add(item);
+          remaining.addAll(items.skip(items.indexOf(item) + 1));
+          await AuthService.handleUnauthorized();
+          break;
         } else {
-          // 401/403/429/5xx u otros: reintentar despues.
+          // 403/429/5xx u otros: reintentar despues.
           item['attempts'] = (item['attempts'] ?? 0) + 1;
           remaining.add(item);
         }

@@ -55,6 +55,17 @@ class ApiService {
     }
   }
 
+  /// Respuesta estandar cuando el servidor rechaza el token (401): borra la
+  /// sesion, manda al login y devuelve un error claro (no uno de "alcance").
+  static Map<String, dynamic> _unauthorized() {
+    AuthService.handleUnauthorized();
+    return {
+      'success': false,
+      'message': AuthService.sessionExpiredMessage,
+      'error_type': 'unauthorized',
+    };
+  }
+
   // Headers autenticados
   static Future<Map<String, String>> _getHeaders() async {
     final token = await AuthService.getToken();
@@ -84,6 +95,7 @@ class ApiService {
           headers: headers,
           body: jsonEncode({'cedula': cleanCedula}),
         ).timeout(const Duration(seconds: 15));
+        if (response.statusCode == 401) return _unauthorized();
         if (response.statusCode == 200 || response.statusCode == 403 || response.statusCode == 404) {
           final data = jsonDecode(response.body);
           if (data is Map<String, dynamic>) {
@@ -174,6 +186,8 @@ class ApiService {
         body: jsonEncode(voterData),
       );
 
+      if (response.statusCode == 401) return _unauthorized();
+
       final isJson = response.headers['content-type']?.contains('application/json') ?? false;
       
       if (!isJson) {
@@ -216,6 +230,8 @@ class ApiService {
         headers: headers,
       );
 
+      if (response.statusCode == 401) return _unauthorized();
+
       if (response.statusCode == 200 && (response.headers['content-type']?.contains('application/json') ?? false)) {
         return jsonDecode(response.body);
       }
@@ -233,6 +249,8 @@ class ApiService {
         Uri.parse('$baseUrl/voters/reference-data'),
         headers: headers,
       );
+
+      if (response.statusCode == 401) return _unauthorized();
 
       if (response.statusCode == 200 && (response.headers['content-type']?.contains('application/json') ?? false)) {
         return jsonDecode(response.body);
